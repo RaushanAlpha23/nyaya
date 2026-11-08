@@ -44,6 +44,28 @@ class UserRepository(TenantRepository):
             email=normalize_email(email),
         )
 
+    async def get_credentials_by_email(self, email: str) -> dict[str, Any] | None:
+        """For login only. This is the one query that returns password_hash."""
+        return await self.fetch_one(
+            "select id, email, password_hash, is_active from users "
+            "where tenant_id = :tenant_id and email = :email",
+            email=normalize_email(email),
+        )
+
+    async def set_password_hash(self, user_id: UUID, password_hash: str) -> None:
+        await self.execute(
+            "update users set password_hash = :password_hash "
+            "where tenant_id = :tenant_id and id = :user_id",
+            user_id=user_id,
+            password_hash=password_hash,
+        )
+
+    async def touch_last_login(self, user_id: UUID) -> None:
+        await self.execute(
+            "update users set last_login_at = now() where tenant_id = :tenant_id and id = :user_id",
+            user_id=user_id,
+        )
+
     async def assign_role(self, user_id: UUID, role_name: str) -> None:
         # The composite FK (tenant_id, user_id) makes the database reject a user from another tenant.
         await self.execute(

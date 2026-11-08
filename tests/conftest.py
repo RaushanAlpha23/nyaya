@@ -31,8 +31,15 @@ async def conn():
 
 
 @pytest_asyncio.fixture
-async def two_tenants(conn):
+async def tenant_rows(conn):
+    """Two tenant rows (id, slug, ...) for tests that need the slug, such as login."""
     admin = TenantAdminRepository(conn)
     a = await admin.create(f"a-{uuid.uuid4().hex[:8]}", "Tenant A")
     b = await admin.create(f"b-{uuid.uuid4().hex[:8]}", "Tenant B")
+    return a, b
+
+
+@pytest_asyncio.fixture
+async def two_tenants(tenant_rows):
+    a, b = tenant_rows
     return TenantContext(a["id"]), TenantContext(b["id"])
