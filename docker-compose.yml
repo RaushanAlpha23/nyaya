@@ -1,0 +1,18 @@
+# Only local services. Postgres (Supabase), Mongo (Atlas) and Qdrant are cloud-hosted.
+# MinIO and Redpanda are added in later milestones.
+services:
+  redis:
+    image: redis:7-alpine
+    profiles: ["core"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redis_data:
