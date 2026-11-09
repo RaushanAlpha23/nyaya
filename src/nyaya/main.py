@@ -1,0 +1,50 @@
+"""FastAPI application.
+
+Run locally (from the repo root, with PYTHONPATH=src or an editable install):
+    uvicorn nyaya.main:app --reload
+"""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from uuid import uuid4
+
+from fastapi import FastAPI, Request
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from nyaya.api import routes_auth, routes_health
+from nyaya.db import make_engine
+from nyaya.health import Check, default_checks
+
+
+def create_app(
+    engine: AsyncEngine | None = None,
+    readiness_checks: dict[str, Check] | None = None,
+) -> FastAPI:
+    owns_engine = engine is None
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if owns_engine:
+            app.state.engine = make_engine()
+        yield
+        if owns_engine:
+            await app.state.engine.dispose()
+
+    app = FastAPI(title="Nyaya", lifespan=lifespan)
+    if engine is not None:
+        app.state.engine = engine
+    app.state.readiness_checks = readiness_checks or default_checks(lambda: app.state.engine)
+
+    @app.middleware("http")
+    async def request_id_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+        request.state.request_id = request.headers.get("x-request-id") or uuid4().hex
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request.state.request_id
+        return response
+
+    app.include_router(routes_health.router)
+    app.include_router(routes_auth.router)
+    return app
+
+
+app = create_app()

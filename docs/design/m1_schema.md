@@ -251,6 +251,7 @@ Indexes:
 - (tenant_id, occurred_at DESC): "latest activity in my tenant".
 - (tenant_id, entity_type, entity_id): "full history of this decision".
 
+
 **How to make it append-only (PROPOSED): two layers.**
 1. **Permissions:** `REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM nyaya_app;` so the API can only INSERT and SELECT.
 2. **Trigger:** a BEFORE UPDATE OR DELETE trigger that raises an exception, so even a mistake by the table owner is blocked. TRUNCATE needs its own statement-level trigger.

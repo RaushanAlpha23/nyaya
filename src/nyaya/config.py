@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = Field(default=15, ge=1, le=120)
     refresh_token_ttl_days: int = Field(default=7, ge=1, le=90)
     # Argon2id: OWASP minimum is 19 MiB memory, 2 iterations, 1 lane. Re-check when implementing.
+    # Cookies are sent only over HTTPS when true. Must be true in prod; false for http://localhost.
+    cookie_secure: bool = False
     argon2_memory_kib: int = Field(default=19456, ge=19456)
     argon2_time_cost: int = Field(default=2, ge=2)
     argon2_parallelism: int = Field(default=1, ge=1)
@@ -85,6 +87,8 @@ class Settings(BaseSettings):
             secret = self.jwt_secret.get_secret_value()
             if secret.startswith("dev-only") or len(secret) < 32:
                 raise ValueError("NYAYA_JWT_SECRET must be a strong, non-default value in prod")
+            if not self.cookie_secure:
+                raise ValueError("NYAYA_COOKIE_SECURE must be true in prod")
         if self.langsmith_enabled and self.langsmith_api_key is None:
             raise ValueError("NYAYA_LANGSMITH_API_KEY is required when langsmith_enabled is true")
         return self
