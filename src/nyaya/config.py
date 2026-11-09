@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     argon2_time_cost: int = Field(default=2, ge=2)
     argon2_parallelism: int = Field(default=1, ge=1)
 
+    # --- Login rate limiting (Redis, fixed windows) ---
+    rate_limit_login_ip_max: int = Field(default=30, ge=1)  # attempts per IP per window
+    rate_limit_login_ip_window_s: int = Field(default=300, ge=1)
+    rate_limit_login_account_max: int = Field(default=5, ge=1)  # attempts per account per window
+    rate_limit_login_account_window_s: int = Field(default=900, ge=1)
+    # If Redis is down: true = let logins through (availability), false = refuse them (safety).
+    rate_limit_fail_open: bool = True
+
     # --- LLM gateway ---
     openai_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None

@@ -24,6 +24,7 @@ from nyaya.auth import service
 from nyaya.auth.service import AuthError, TokenPair
 from nyaya.auth.tokens import csrf_matches
 from nyaya.config import get_settings
+from nyaya.ratelimit import RateLimiterUnavailable
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -62,10 +63,33 @@ def _require_csrf(request: Request) -> None:
         raise HTTPException(status_code=403, detail="csrf check failed")
 
 
+def _client_ip(request: Request) -> str:
+    # Behind Nginx later, run uvicorn with --proxy-headers and --forwarded-allow-ips so this is
+    # the real client address. Never read X-Forwarded-For here yourself: clients can fake it.
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/login", response_model=AuthResponse)
 async def login(
-    body: LoginRequest, response: Response, session: SessionDep, request_id: RequestIdDep
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    request_id: RequestIdDep,
 ) -> AuthResponse:
+    limiter = request.app.state.limiter
+    if limiter is not None:
+        try:
+            decision = await limiter.login_attempt(_client_ip(request), body.tenant, body.email)
+        except RateLimiterUnavailable:
+            raise HTTPException(status_code=503, detail="service unavailable") from None
+        if not decision.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="too many attempts",
+                headers={"Retry-After": str(decision.retry_after)},
+            )
+
     try:
         pair = await service.login(
             session.conn, body.tenant, body.email, body.password, request_id=request_id
@@ -74,6 +98,8 @@ async def login(
         await session.commit()  # keep the failed-login audit entry
         raise HTTPException(status_code=401, detail="invalid credentials") from None
     await session.commit()
+    if limiter is not None:
+        await limiter.login_succeeded(body.tenant, body.email)
     set_auth_cookies(response, pair)
     return _auth_response(pair)
 
