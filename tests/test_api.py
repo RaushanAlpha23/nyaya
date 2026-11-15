@@ -6,7 +6,6 @@ still committed (otherwise reuse detection would silently be undone in productio
 """
 
 import httpx
-import pytest
 import pytest_asyncio
 
 from nyaya.api.cookies import CSRF_COOKIE, FINGERPRINT_COOKIE, REFRESH_COOKIE

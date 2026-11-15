@@ -7,7 +7,7 @@ commit on purpose even when they return 401, so revocations and audit entries ar
 get_tenant: builds the TenantContext from the VERIFIED access token, never from the body.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
@@ -32,7 +32,7 @@ async def get_session(request: Request) -> AsyncIterator[Session]:
 
 
 def get_request_id(request: Request) -> str:
-    return request.state.request_id
+    return str(request.state.request_id)
 
 
 def _unauthorized() -> HTTPException:
@@ -60,3 +60,22 @@ SessionDep = Annotated[Session, Depends(get_session)]
 RequestIdDep = Annotated[str, Depends(get_request_id)]
 ClaimsDep = Annotated[AccessClaims, Depends(get_claims)]
 TenantDep = Annotated[TenantContext, Depends(get_tenant)]
+
+
+def require_role(*allowed: str) -> Callable[[AccessClaims], Awaitable[AccessClaims]]:
+    """Dependency factory: allow the request only if the user holds at least one of the roles.
+
+        @router.post("/approve")
+        async def approve(claims: Annotated[AccessClaims, Depends(require_role("approver"))]): ...
+
+    Roles come from the access token, so a role change takes effect when the current access token
+    expires (15 minutes by default), not instantly. Side-effect tools re-check approvals in code.
+    """
+    wanted = frozenset(allowed)
+
+    async def checker(claims: ClaimsDep) -> AccessClaims:
+        if wanted.isdisjoint(claims.roles):
+            raise HTTPException(status_code=403, detail="forbidden")
+        return claims
+
+    return checker

@@ -7,6 +7,7 @@ Two rules are enforced here, in one place, so there is one thing to audit:
 """
 
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -17,12 +18,12 @@ from nyaya.tenancy import TenantContext
 class TenantRepository:
     def __init__(self, conn: AsyncConnection, ctx: TenantContext) -> None:
         if not isinstance(ctx, TenantContext):
-            raise ValueError("A TenantContext is required to build a repository")
+            raise TypeError("A TenantContext is required to build a repository")
         self._conn = conn
         self._ctx = ctx
 
     @property
-    def tenant_id(self):
+    def tenant_id(self) -> UUID:
         return self._ctx.tenant_id
 
     def _prepare(self, sql: str, params: dict[str, Any]) -> tuple[Any, dict[str, Any]]:

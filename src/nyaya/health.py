@@ -28,7 +28,7 @@ def default_checks(get_engine: Callable[[], AsyncEngine]) -> dict[str, Check]:
         from pymongo import MongoClient
 
         def ping() -> None:
-            client = MongoClient(
+            client: MongoClient[Any] = MongoClient(
                 settings.mongo_uri.get_secret_value(), serverSelectionTimeoutMS=5000
             )
             try:

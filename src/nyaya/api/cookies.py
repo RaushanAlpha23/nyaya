@@ -20,14 +20,18 @@ _AUTH_PATH = "/auth"
 
 def set_auth_cookies(response: Response, pair: TokenPair) -> None:
     settings = get_settings()
-    common = {
-        "max_age": settings.refresh_token_ttl_days * 86400,
-        "secure": settings.cookie_secure,
-        "samesite": "strict",
-    }
-    response.set_cookie(REFRESH_COOKIE, pair.refresh_token, httponly=True, path=_AUTH_PATH, **common)
-    response.set_cookie(FINGERPRINT_COOKIE, pair.fingerprint, httponly=True, path="/", **common)
-    response.set_cookie(CSRF_COOKIE, pair.csrf_token, httponly=False, path="/", **common)
+    max_age = settings.refresh_token_ttl_days * 86400
+    secure = settings.cookie_secure
+
+    def put(name: str, value: str, *, httponly: bool, path: str) -> None:
+        response.set_cookie(
+            name, value, max_age=max_age, secure=secure, samesite="strict",
+            httponly=httponly, path=path,
+        )
+
+    put(REFRESH_COOKIE, pair.refresh_token, httponly=True, path=_AUTH_PATH)
+    put(FINGERPRINT_COOKIE, pair.fingerprint, httponly=True, path="/")
+    put(CSRF_COOKIE, pair.csrf_token, httponly=False, path="/")
 
 
 def clear_auth_cookies(response: Response) -> None:

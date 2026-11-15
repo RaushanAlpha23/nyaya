@@ -12,6 +12,7 @@ import httpx
 import pytest
 import pytest_asyncio
 import redis.asyncio as aioredis
+from redis.exceptions import RedisError
 
 from nyaya.api.deps import Session, get_session
 from nyaya.auth.passwords import hash_password
@@ -30,9 +31,11 @@ async def redis_client():
     client = make_redis_client(get_settings().redis_url.get_secret_value())
     try:
         await client.ping()
-    except Exception:
+    except (RedisError, OSError):
         await client.aclose()
-        pytest.skip("Redis is not reachable (start it with: docker compose --profile core up -d redis)")
+        pytest.skip(
+            "Redis is not reachable (start it with: docker compose --profile core up -d redis)"
+        )
     yield client
     await client.aclose()
 

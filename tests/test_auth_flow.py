@@ -18,7 +18,9 @@ from nyaya.repositories.users import UserRepository
 PW = "correct horse battery staple"
 
 
-async def make_user(conn, ctx, email="user@example.com", password=PW, roles=("viewer",), hashed=None):
+async def make_user(
+    conn, ctx, email="user@example.com", password=PW, roles=("viewer",), hashed=None
+):
     users = UserRepository(conn, ctx)
     user = await users.create(email, password_hash=hashed or hash_password(password))
     for role in roles:
@@ -72,7 +74,7 @@ async def test_bad_credentials_all_fail_with_the_same_message(conn, tenant_rows,
 
 
 async def test_same_email_in_two_tenants_logs_into_the_right_one(conn, tenant_rows, two_tenants):
-    (row_a, row_b), (ctx_a, ctx_b) = tenant_rows, two_tenants
+    (row_a, _), (ctx_a, ctx_b) = tenant_rows, two_tenants
     await make_user(conn, ctx_a, password="password for tenant A!!")
     await make_user(conn, ctx_b, password="password for tenant B!!")
 
@@ -89,11 +91,15 @@ async def test_inactive_user_and_suspended_tenant_cannot_login(conn, tenant_rows
     user_a = await make_user(conn, ctx_a)
     await make_user(conn, ctx_b)
 
-    await conn.execute(text("update users set is_active = false where id = :id"), {"id": user_a["id"]})
+    await conn.execute(
+        text("update users set is_active = false where id = :id"), {"id": user_a["id"]}
+    )
     with pytest.raises(AuthError):
         await service.login(conn, row_a["slug"], "user@example.com", PW)
 
-    await conn.execute(text("update tenants set status = 'suspended' where id = :id"), {"id": row_b["id"]})
+    await conn.execute(
+        text("update tenants set status = 'suspended' where id = :id"), {"id": row_b["id"]}
+    )
     with pytest.raises(AuthError):
         await service.login(conn, row_b["slug"], "user@example.com", PW)
 
@@ -137,7 +143,7 @@ async def _login(conn, tenant_rows, two_tenants):
 
 
 async def test_refresh_rotates_the_token(conn, tenant_rows, two_tenants):
-    ctx_a, user, first = await _login(conn, tenant_rows, two_tenants)
+    _, user, first = await _login(conn, tenant_rows, two_tenants)
 
     second = await service.refresh(conn, first.refresh_token, first.fingerprint)
 
@@ -203,7 +209,9 @@ async def test_unknown_refresh_token_is_rejected(conn):
 
 async def test_disabled_user_cannot_refresh(conn, tenant_rows, two_tenants):
     _, user, first = await _login(conn, tenant_rows, two_tenants)
-    await conn.execute(text("update users set is_active = false where id = :id"), {"id": user["id"]})
+    await conn.execute(
+        text("update users set is_active = false where id = :id"), {"id": user["id"]}
+    )
 
     with pytest.raises(AuthError):
         await service.refresh(conn, first.refresh_token, first.fingerprint)
@@ -240,7 +248,7 @@ async def test_logout_all_revokes_every_session(conn, tenant_rows, two_tenants):
 # ---------- tenant isolation of tokens ----------
 
 async def test_other_tenant_cannot_revoke_a_family(conn, tenant_rows, two_tenants):
-    (ctx_a, ctx_b) = two_tenants
+    (_, ctx_b) = two_tenants
     _, _, first = await _login(conn, tenant_rows, two_tenants)
     family_id = (await token_row(conn, first.refresh_token))["family_id"]
 

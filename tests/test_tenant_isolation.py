@@ -36,8 +36,10 @@ async def test_cross_tenant_read_by_email_returns_own_user(conn, two_tenants):
     ctx_a, ctx_b = two_tenants
     user_a = await UserRepository(conn, ctx_a).create("same@example.com")
     user_b = await UserRepository(conn, ctx_b).create("same@example.com")
-    assert (await UserRepository(conn, ctx_a).get_by_email("same@example.com"))["id"] == user_a["id"]
-    assert (await UserRepository(conn, ctx_b).get_by_email("same@example.com"))["id"] == user_b["id"]
+    found_a = await UserRepository(conn, ctx_a).get_by_email("same@example.com")
+    found_b = await UserRepository(conn, ctx_b).get_by_email("same@example.com")
+    assert found_a["id"] == user_a["id"]
+    assert found_b["id"] == user_b["id"]
 
 
 async def test_caller_cannot_override_tenant(conn, two_tenants):
@@ -60,7 +62,7 @@ async def test_query_without_tenant_filter_is_refused(conn, two_tenants):
 
 
 async def test_repository_requires_tenant_context(conn):
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         UserRepository(conn, None)  # type: ignore[arg-type]
 
 

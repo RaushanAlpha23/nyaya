@@ -16,7 +16,13 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from nyaya.auth.passwords import MAX_LENGTH, burn_time, needs_rehash, hash_password, verify_password
+from nyaya.auth.passwords import (
+    MAX_LENGTH,
+    burn_time,
+    hash_password,
+    needs_rehash,
+    verify_password,
+)
 from nyaya.auth.tokens import create_access_token, hash_token, new_opaque_token
 from nyaya.config import get_settings
 from nyaya.repositories.audit import AuditRepository
@@ -108,7 +114,7 @@ async def login(
     else:
         valid = verify_password(stored_hash, password)
 
-    if not (valid and creds is not None and creds["is_active"]):
+    if not (valid and creds is not None and stored_hash is not None and creds["is_active"]):
         await audit.record(
             actor_type="system",
             action="auth.login_failed",

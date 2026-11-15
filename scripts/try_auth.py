@@ -35,15 +35,20 @@ def main(tenant: str, email: str, password: str) -> None:
         old = {k: r.cookies.get(k) for k in (RT, FP, CSRF)}
         auth = {"Authorization": f"Bearer {token}"}
 
-        show("GET /auth/me with token + fingerprint cookie", http.get("/auth/me", headers=auth), 200)
+        show(
+            "GET /auth/me with token + fingerprint cookie",
+            http.get("/auth/me", headers=auth),
+            200,
+        )
         show(
             "GET /auth/me with token but NO fingerprint cookie",
             httpx.get(f"{BASE}/auth/me", headers=auth),
             401,
         )
+        no_csrf = {"Cookie": f"{RT}={old[RT]}; {FP}={old[FP]}; {CSRF}={old[CSRF]}"}
         show(
             "POST /auth/refresh without CSRF header",
-            httpx.post(f"{BASE}/auth/refresh", headers={"Cookie": f"{RT}={old[RT]}; {FP}={old[FP]}; {CSRF}={old[CSRF]}"}),
+            httpx.post(f"{BASE}/auth/refresh", headers=no_csrf),
             403,
         )
 

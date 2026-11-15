@@ -67,7 +67,7 @@ class UserRepository(TenantRepository):
         )
 
     async def assign_role(self, user_id: UUID, role_name: str) -> None:
-        # The composite FK (tenant_id, user_id) makes the database reject a user from another tenant.
+        # The composite FK (tenant_id, user_id) makes the database reject another tenant's user.
         await self.execute(
             """
             insert into user_roles (tenant_id, user_id, role_name)
